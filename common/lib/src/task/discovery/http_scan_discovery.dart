@@ -22,14 +22,27 @@ class HttpScanDiscoveryService {
   }) : _targetedDiscoveryService = targetedDiscoveryService;
 
   Stream<Device> getStream({required String networkInterface, required int port, required bool https}) {
-    final ipList = List.generate(256, (i) => '${networkInterface.split('.').take(3).join('.')}.$i').where((ip) => ip != networkInterface).toList();
+    // Scan the whole /16 range (e.g. 172.18.0.0 - 172.18.255.255) instead of just
+    // the local /24, so devices on a different third octet (e.g. phone on
+    // 172.18.9.x while the PC is on 172.18.80.x) can still be discovered.
+    final prefix = networkInterface.split('.').take(2).join('.');
+    final ipList = <String>[];
+    for (var third = 0; third < 256; third++) {
+      for (var fourth = 0; fourth < 256; fourth++) {
+        final ip = '$prefix.$third.$fourth';
+        if (ip != networkInterface) {
+          ipList.add(ip);
+        }
+      }
+    }
     _runners[networkInterface]?.stop();
     _runners[networkInterface] = TaskRunner<Device?>(
       initialTasks: List.generate(
         ipList.length,
         (index) => () async => _doRequest(ipList[index], port, https),
       ),
-      concurrency: 50,
+      // Higher concurrency because a /16 scan covers 65536 addresses.
+      concurrency: 256,
     );
 
     return _runners[networkInterface]!.stream.where((device) => device != null).cast<Device>();
@@ -65,3 +78,4 @@ class HttpScanDiscoveryService {
     return device;
   }
 }
+

@@ -52,6 +52,11 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+# Ensure plugins that use C++/WinRT (e.g. the `gal` plugin) link against the
+# Windows Runtime umbrella library. Without this, newer Windows SDKs (10.0.26100+)
+# fail to resolve WINRT_IMPL_Ro* symbols at link time.
+link_libraries(windowsapp)
+
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
@@ -99,3 +104,4 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
